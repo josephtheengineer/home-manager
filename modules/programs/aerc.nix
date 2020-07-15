@@ -168,7 +168,14 @@ in {
   };
 
   config = mkIf cfg.enable {
-    home.packages = [ pkgs.aerc ];
+    home.packages = [
+      pkgs.aerc = super.aerc.override {
+        patches = [
+          ./runtime-sharedir.patch
+          ./do-not-fail-on-open-permissions.patch
+        ];
+      };
+    ];
 
     xdg.configFile."aerc/accounts.conf" = mkIf (aercAccounts != [ ]) {
       text = ''
