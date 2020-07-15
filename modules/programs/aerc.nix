@@ -170,13 +170,12 @@ in {
   config = mkIf cfg.enable {
     home.packages =
       let
-        fcfg = {
+        package = pkgs.aerc.override {
           patches = [
             ./runtime-sharedir.patch
             ./do-not-fail-on-open-permissions.patch
           ];
         };
-	package = pkgs.aerc.override { cfg = fcfg; };
       in
       [ package ];
 
