@@ -167,15 +167,30 @@ in {
     };
   };
 
-  config = mkIf cfg.enable {
-    home.packages = [
-      pkgs.aerc.override {
+  package = mkOption {
+    type = types.package;
+    default = (pkgs.aerc.override {
         patches = [
           ./runtime-sharedir.patch
           ./do-not-fail-on-open-permissions.patch
         ];
-      }
-    ];
+    });
+    defaultText = literalExample "(pkgs.aerc.override {
+        patches = [
+          ./runtime-sharedir.patch
+          ./do-not-fail-on-open-permissions.patch
+        ];
+    });";
+    example =
+      literalExample "(pkgs.aerc.override { enableCheck = true; })";
+    description = ''
+      The <literal>aerc</literal> package to use.
+      Can be used to specify extensions.
+    '';
+  };
+
+  config = mkIf cfg.enable {
+    home.packages = [ cfg.package ];
 
     xdg.configFile."aerc/accounts.conf" = mkIf (aercAccounts != [ ]) {
       text = ''
