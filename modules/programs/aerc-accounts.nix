@@ -3,16 +3,6 @@
 with lib;
 
 {
-  # Add patch to ignore accounts file permissions
-  nixpkgs.config.packageOverrides = super: let self = super.pkgs; in {
-    aerc = super.aerc.override {
-      patches = [
-        ./runtime-sharedir.patch
-        ./do-not-fail-on-open-permissions.patch
-      ];
-    };
-  };
-
   options.aerc = {
     enable = mkEnableOption "Aerc";
 
