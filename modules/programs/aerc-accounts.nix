@@ -3,11 +3,20 @@
 with lib;
 
 {
+  nixpkgs.config.packageOverrides = super: let self = super.pkgs; in {
+    aerc = super.aerc.override {
+      patches = [
+        ./runtime-sharedir.patch
+        ./do-not-fail-on-open-permissions.patch
+      ];
+    };
+  };
+
   options.aerc = {
     enable = mkEnableOption "Aerc";
 
     source = mkOption {
-      type = types.enum [ "imap", "maildir" ];
+      type = types.enum [ "imap" "maildir" ];
       description = "Source for reading incoming emails.";
     };
 

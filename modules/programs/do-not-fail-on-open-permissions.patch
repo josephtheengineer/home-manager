@@ -1,0 +1,146 @@
+From: Siva Mahadevan <me@svmhdvn.name>
+
+If the accounts.conf file contains secrets, it shouldn't be readable
+to anyone except the owner of the file. Previously, aerc exits with an
+error if this file is readable to other users, even if there are no
+secrets in the file. This commit changes that behaviour to the
+following:
+- Print a warning if the accounts.conf file is readable to other users
+- If that file also contains any known secrets (password, OAuth info,
+  etc.), exit with an error
+
+Resolves https://todo.sr.ht/~sircmpwn/aerc2/426
+---
+Unrelated changes made due to `go fmt`.
+
+ config/config.go | 56 +++++++++++++++++++++++++++---------------------
+ 1 file changed, 31 insertions(+), 25 deletions(-)
+
+diff --git a/config/config.go b/config/config.go
+index ce59944..ac5ec0b 100644
+--- a/config/config.go
++++ b/config/config.go
+@@ -166,6 +166,7 @@ func loadAccountConfig(path string) ([]AccountConfig, error) {
+ 	}
+ 	file.NameMapper = mapName
+
++	accountsSecure := isFileSecure(path)
+ 	var accounts []AccountConfig
+ 	for _, _sec := range file.SectionStrings() {
+ 		if _sec == "DEFAULT" {
+@@ -211,13 +212,13 @@ func loadAccountConfig(path string) ([]AccountConfig, error) {
+ 			return nil, fmt.Errorf("Expected source for account %s", _sec)
+ 		}
+
+-		source, err := parseCredential(account.Source, account.SourceCredCmd)
++		source, err := parseCredential(account.Source, account.SourceCredCmd, accountsSecure)
+ 		if err != nil {
+ 			return nil, fmt.Errorf("Invalid source credentials for %s: %s", _sec, err)
+ 		}
+ 		account.Source = source
+
+-		outgoing, err := parseCredential(account.Outgoing, account.OutgoingCredCmd)
++		outgoing, err := parseCredential(account.Outgoing, account.OutgoingCredCmd, accountsSecure)
+ 		if err != nil {
+ 			return nil, fmt.Errorf("Invalid outgoing credentials for %s: %s", _sec, err)
+ 		}
+@@ -228,8 +229,8 @@ func loadAccountConfig(path string) ([]AccountConfig, error) {
+ 	return accounts, nil
+ }
+
+-func parseCredential(cred, command string) (string, error) {
+-	if cred == "" || command == "" {
++func parseCredential(cred, command string, fileSecure bool) (string, error) {
++	if cred == "" {
+ 		return cred, nil
+ 	}
+
+@@ -238,16 +239,24 @@ func parseCredential(cred, command string) (string, error) {
+ 		return "", err
+ 	}
+
+-	// ignore the command if a password is specified
+-	if _, exists := u.User.Password(); exists {
+-		return cred, nil
+-	}
+-
+ 	// don't attempt to parse the command if the url is a path (ie /usr/bin/sendmail)
+ 	if !u.IsAbs() {
+ 		return cred, nil
+ 	}
+
++	_, exists := u.User.Password()
++	if fileSecure {
++		if exists {
++			// ignore the command if a password is specified
++			return cred, nil
++		}
++	} else {
++		if exists || strings.Contains(u.Scheme, "none") || strings.Contains(u.Scheme, "oauthbearer") {
++			fmt.Fprintln(os.Stderr, "Error: found secrets in file.")
++			return "", errors.New("file permissions too lax")
++		}
++	}
++
+ 	cmd := exec.Command("sh", "-c", command)
+ 	cmd.Stdin = os.Stdin
+ 	output, err := cmd.Output()
+@@ -419,11 +428,7 @@ func LoadConfigFromFile(root *string, sharedir string) (*AercConfig, error) {
+ 		_root := path.Join(xdg.ConfigHome(), "aerc")
+ 		root = &_root
+ 	}
+-	filename := path.Join(*root, "accounts.conf")
+-	if err := checkConfigPerms(filename); err != nil {
+-		return nil, err
+-	}
+-	filename = path.Join(*root, "aerc.conf")
++	filename := path.Join(*root, "aerc.conf")
+ 	file, err := ini.LoadSources(ini.LoadOptions{
+ 		KeyValueDelimiters: "=",
+ 	}, filename)
+@@ -516,8 +521,8 @@ func LoadConfigFromFile(root *string, sharedir string) (*AercConfig, error) {
+ 		}
+ 	}
+
+-	accountsPath := path.Join(*root, "accounts.conf")
+-	if accounts, err := loadAccountConfig(accountsPath); err != nil {
++	filename = path.Join(*root, "accounts.conf")
++	if accounts, err := loadAccountConfig(filename); err != nil {
+ 		return nil, err
+ 	} else {
+ 		config.Accounts = accounts
+@@ -589,23 +594,24 @@ func LoadConfigFromFile(root *string, sharedir string) (*AercConfig, error) {
+ 	return config, nil
+ }
+
+-// checkConfigPerms checks for too open permissions
+-// printing the fix on stdout and returning an error
+-func checkConfigPerms(filename string) error {
++// isFileSecure checks for too open permissions and prints
++// the warning and fix on stderr.
++// Returns true if the file can only be read by its owner.
++func isFileSecure(filename string) bool {
+ 	info, err := os.Stat(filename)
+ 	if err != nil {
+-		return nil // disregard absent files
++		return true // disregard absent files
+ 	}
+ 	perms := info.Mode().Perm()
+ 	goPerms := perms >> 3
+ 	// group or others have read access
+ 	if goPerms&0x44 != 0 {
+-		fmt.Fprintf(os.Stderr, "The file %v has too open permissions.\n", filename)
+-		fmt.Fprintln(os.Stderr, "This is a security issue (it contains passwords).")
++		fmt.Fprintf(os.Stderr, "Warning: the file %v has too open permissions.\n", filename)
++		fmt.Fprintln(os.Stderr, "This will be a security issue if it contains any secrets.")
+ 		fmt.Fprintf(os.Stderr, "To fix it, run `chmod 600 %v`\n", filename)
+-		return errors.New("account.conf permissions too lax")
++		return false
+ 	}
+-	return nil
++	return true
+ }
+
+ func parseLayout(layout string) [][]string {
+--
+2.27.0
