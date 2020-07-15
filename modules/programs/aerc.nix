@@ -171,10 +171,12 @@ in {
     home.packages =
       let
         package = pkgs.aerc.override {
-          patches = [
-            ./runtime-sharedir.patch
-            ./do-not-fail-on-open-permissions.patch
-          ];
+          buildGoModule rec {
+	    patches = [
+              ./runtime-sharedir.patch
+              ./do-not-fail-on-open-permissions.patch
+            ];
+	  };
         };
       in
       [ package ];
