@@ -176,8 +176,9 @@ in {
             ./do-not-fail-on-open-permissions.patch
           ];
         };
+	package = pkgs.aerc.override { cfg = fcfg; }
       in
-      [ pkgs.aerc.override { cfg = fcfg } ];
+      [ package ];
 
     xdg.configFile."aerc/accounts.conf" = mkIf (aercAccounts != [ ]) {
       text = ''
