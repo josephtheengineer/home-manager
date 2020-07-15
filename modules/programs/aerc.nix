@@ -169,7 +169,7 @@ in {
 
   config = mkIf cfg.enable {
     home.packages = [
-      pkgs.aerc = super.aerc.override {
+      super.aerc.override {
         patches = [
           ./runtime-sharedir.patch
           ./do-not-fail-on-open-permissions.patch
