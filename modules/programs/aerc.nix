@@ -176,7 +176,7 @@ in {
             ./do-not-fail-on-open-permissions.patch
           ];
         };
-	package = pkgs.aerc.override { cfg = fcfg; }
+	package = pkgs.aerc.override { cfg = fcfg; };
       in
       [ package ];
 
