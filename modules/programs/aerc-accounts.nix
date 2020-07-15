@@ -3,6 +3,7 @@
 with lib;
 
 {
+  # Add patch to ignore accounts file permissions
   nixpkgs.config.packageOverrides = super: let self = super.pkgs; in {
     aerc = super.aerc.override {
       patches = [
