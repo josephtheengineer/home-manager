@@ -169,12 +169,12 @@ in {
 
   package = mkOption {
     type = types.package;
-    default = (pkgs.aerc.override {
+    default = pkgs.aerc.override {
         patches = [
           ./runtime-sharedir.patch
           ./do-not-fail-on-open-permissions.patch
         ];
-    });
+    };
     defaultText = literalExample "(pkgs.aerc.override {
         patches = [
           ./runtime-sharedir.patch
