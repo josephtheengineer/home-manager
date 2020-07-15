@@ -174,7 +174,7 @@ in {
           ./runtime-sharedir.patch
           ./do-not-fail-on-open-permissions.patch
         ];
-      };
+      }
     ];
 
     xdg.configFile."aerc/accounts.conf" = mkIf (aercAccounts != [ ]) {
